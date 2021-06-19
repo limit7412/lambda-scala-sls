@@ -1,5 +1,6 @@
 package serverless
 
+import io.circe._, io.circe.parser._
 import java.net.http.HttpRequest
 import java.net.URI
 import java.net.http.HttpClient
@@ -15,11 +16,15 @@ object Lambda {
       .newBuilder()
       .uri(URI.create("https://api.coindesk.com/v1/bpi/currentprice.json"))
       .GET()
-      .build();
+      .build()
     var response = HttpClient
       .newHttpClient()
-      .send(request, HttpResponse.BodyHandlers.ofInputStream());
-    println(response.body().toString())
+      .send(request, HttpResponse.BodyHandlers.ofString())
+
+    val doc: Json = parse(response.body()).getOrElse(Json.Null)
+    val cursor: HCursor = doc.hcursor
+    val test = cursor.downField("time").downField("updated").as[String]
+    println(test)
 
     // while (true) {
     callback(name)
