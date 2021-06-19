@@ -1,18 +1,18 @@
-import aws.Lambda
+import serverless.Lambda
 
 object Main {
   def main(args: Array[String]): Unit =
-    Lambda
+    serverless.Lambda
       .Handler(
-        "たべるんご",
-        (event: String) => {
-          println(event)
+        "hello",
+        (event) => {
+          println("さよなら透明だった僕たち")
         }
       )
       .Handler(
-        "こいつはりんごろう",
-        (event: String) => {
-          println(event)
+        "world",
+        (event) => {
+          println("でしょうねミスター・サーバーレス")
         }
       )
 }
