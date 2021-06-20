@@ -5,6 +5,7 @@ import io.circe.parser._
 import io.circe.generic.JsonCodec
 import io.circe.syntax._
 object Main {
+  @JsonCodec case class SampleRequest(msg: String, test: Int)
   @JsonCodec case class SampleResponse(msg: String)
 
   def main(args: Array[String]): Unit =
@@ -25,15 +26,20 @@ object Main {
         (event) =>
           decode[serverless.Lambda.APIGatewayRequest](event) match {
             case Right(decodeEvent) => {
-              println(decodeEvent.headers)
-              println(decodeEvent.body)
-              serverless.Lambda
-                .Response(
-                  200,
-                  SampleResponse("でしょうねミスター・サーバーレス").asJson.noSpaces
-                )
-                .asJson
-                .noSpaces
+              decode[SampleRequest](decodeEvent.body) match {
+                case Right(body) =>
+                  serverless.Lambda
+                    .Response(
+                      200,
+                      SampleResponse(
+                        s"でしょうねミスター・サーバーレス\n ${body}"
+                      ).asJson.noSpaces
+                    )
+                    .asJson
+                    .noSpaces
+                case Left(_) =>
+                  throw new Exception("failed to decode request body")
+              }
             }
             case Left(_) =>
               throw new Exception("failed to decode lambda event")
