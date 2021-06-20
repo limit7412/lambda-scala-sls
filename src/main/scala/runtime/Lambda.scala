@@ -38,19 +38,21 @@ object Lambda {
       case Right(event: Request) => {
         try {
           val result = callback(event)
-          Http.Post(
+          val res = Http.Post(
             s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/next",
             result.asJson.noSpaces
           )
+          println(res)
         } catch {
           case e: Exception => {
-            Http.Post(
+            var res = Http.Post(
               s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/error",
               Response(
                 500,
                 "{\"msg\", \"Internal Lambda Error\"}"
               ).asJson.noSpaces
             )
+            println(res)
           }
         }
       }
