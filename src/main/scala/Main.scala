@@ -25,14 +25,14 @@ object Main {
         "world",
         (event) =>
           decode[serverless.Lambda.APIGatewayRequest](event) match {
-            case Right(decodeEvent) => {
+            case Right(decodeEvent) =>
               decode[SampleRequest](decodeEvent.body) match {
                 case Right(body) =>
                   serverless.Lambda
                     .Response(
                       200,
                       SampleResponse(
-                        s"でしょうねミスター・サーバーレス\n ${body}"
+                        s"でしょうねミスター・サーバーレス ${body.asJson.noSpaces}"
                       ).asJson.noSpaces
                     )
                     .asJson
@@ -40,7 +40,6 @@ object Main {
                 case Left(_) =>
                   throw new Exception("failed to decode request body")
               }
-            }
             case Left(_) =>
               throw new Exception("failed to decode lambda event")
           }
