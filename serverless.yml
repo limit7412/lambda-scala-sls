@@ -1,0 +1,37 @@
+service: lambda-scala-sls
+
+custom:
+  defaultStage: dev
+
+provider:
+  name: aws
+  runtime: provided
+  timeout: 20
+  region: ap-northeast-1
+  ecr:
+    images:
+      appImage:
+        path: ./
+  stage: ${opt:, self:custom.defaultStage}
+  # environment:
+  #   ${file(./env.yml)}
+
+functions:
+  hello:
+    image:
+      name: appImage
+      command:
+        - hello
+    events:
+      - http:
+          path: test
+          method: get
+  world:
+    image:
+      name: appImage
+      command:
+        - world
+    events:
+      - http:
+          path: test
+          method: post
