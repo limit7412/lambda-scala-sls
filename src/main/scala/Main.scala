@@ -21,8 +21,9 @@ object Main {
       .Handler(
         "world",
         (event) => {
-          println(event.headers)
-          println(event.body)
+          println(event)
+          // println(event.headers)
+          // println(event.body)
           serverless.Lambda.Response(
             200,
             SampleResponse("でしょうねミスター・サーバーレス").asJson.noSpaces
