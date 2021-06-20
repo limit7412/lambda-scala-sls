@@ -18,10 +18,7 @@ object Lambda {
   @JsonCodec case class Response(statusCode: Int, body: String)
   @JsonCodec case class ErrorResponse(msg: String, error: String)
 
-  def Handler(
-      name: String,
-      callback: Request => Response
-  ): Lambda.type = {
+  def Handler(name: String, callback: Request => Response): Lambda.type = {
     if (name == sys.env("_HANDLER")) {
       handler(callback)
     }
