@@ -19,6 +19,7 @@ object Http {
     return response
   }
   def Post(url: String, body: String): HttpResponse[String] = {
+    println(body)
     var request = HttpRequest
       .newBuilder()
       .uri(URI.create(url))
