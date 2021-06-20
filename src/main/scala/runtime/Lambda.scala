@@ -13,7 +13,7 @@ object Lambda {
       path: String,
       httpMethod: String,
       headers: Map[String, String],
-      body: Map[String, String]
+      body: Map[String, Option[String]]
   )
   @JsonCodec case class Response(statusCode: Int, body: String)
   @JsonCodec case class ErrorResponse(msg: String, error: String)
