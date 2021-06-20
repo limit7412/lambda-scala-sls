@@ -7,7 +7,7 @@ import io.circe.syntax._
 object Main {
   @JsonCodec case class SampleResponse(msg: String)
 
-  def main(): Unit =
+  def main(args: Array[String]): Unit =
     serverless.Lambda
       .Handler(
         "hello",
