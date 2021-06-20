@@ -16,6 +16,7 @@ object Lambda {
       // body: Map[String, String]
   )
   @JsonCodec case class Response(statusCode: Int, body: String)
+  @JsonCodec case class ErrorResponse(msg: String, error: String)
 
   def Handler(
       name: String,
@@ -45,11 +46,15 @@ object Lambda {
           )
         } catch {
           case e: Exception => {
+            e.printStackTrace()
             Http.Post(
               s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/error",
               Response(
                 500,
-                "{\"msg\", \"Internal Lambda Error\"}"
+                ErrorResponse(
+                  "Internal Lambda Error",
+                  e.getMessage()
+                ).asJson.noSpaces
               ).asJson.noSpaces
             )
           }

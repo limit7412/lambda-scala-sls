@@ -12,7 +12,7 @@ object Main {
       .Handler(
         "hello",
         (event) => {
-          println("財布ないわ")
+          throw new Exception("財布ないわ")
           serverless.Lambda.Response(
             200,
             SampleResponse("さよなら透明だった僕たち").asJson.noSpaces
