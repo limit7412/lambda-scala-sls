@@ -1,5 +1,7 @@
-val circeVersion = "0.14.1"
+scalaVersion := "2.12.10"
+name := "bootstrap"
 
+val circeVersion = "0.14.1"
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
@@ -11,7 +13,7 @@ addCompilerPlugin(
 )
 
 enablePlugins(NativeImagePlugin)
-
 nativeImageOptions ++= List(
+  "--static",
   "--enable-https"
 )
