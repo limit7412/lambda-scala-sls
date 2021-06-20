@@ -11,3 +11,6 @@ project/plugins/project/
 
 .metals
 .bloop
+.serverless/
+
+bootstrap

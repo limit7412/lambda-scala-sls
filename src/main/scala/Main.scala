@@ -6,13 +6,21 @@ object Main {
       .Handler(
         "hello",
         (event) => {
-          println("さよなら透明だった僕たち")
+          println("財布ないわ")
+          serverless.Lambda.Response(
+            200,
+            "さよなら透明だった僕たち"
+          )
         }
       )
       .Handler(
         "world",
         (event) => {
-          println("でしょうねミスター・サーバーレス")
+          println(event)
+          serverless.Lambda.Response(
+            200,
+            "でしょうねミスター・サーバーレス"
+          )
         }
       )
 }

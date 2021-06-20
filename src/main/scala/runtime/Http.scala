@@ -1,13 +1,12 @@
 package serverless
 
-import io.circe._, io.circe.parser._
 import java.net.http.HttpRequest
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpResponse
 
 object Http {
-  def get(url: String): HCursor = {
+  def Get(url: String): HttpResponse[String] = {
     var request = HttpRequest
       .newBuilder()
       .uri(URI.create(url))
@@ -17,7 +16,18 @@ object Http {
       .newHttpClient()
       .send(request, HttpResponse.BodyHandlers.ofString())
 
-    val doc: Json = parse(response.body()).getOrElse(Json.Null)
-    return doc.hcursor
+    return response
+  }
+  def Post(url: String, body: String): HttpResponse[String] = {
+    var request = HttpRequest
+      .newBuilder()
+      .uri(URI.create(url))
+      .POST(HttpRequest.BodyPublishers.ofString(body))
+      .build()
+    var response = HttpClient
+      .newHttpClient()
+      .send(request, HttpResponse.BodyHandlers.ofString())
+
+    return response
   }
 }
