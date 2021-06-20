@@ -1,6 +1,12 @@
 import serverless.Lambda
 
+import io.circe._
+import io.circe.parser._
+import io.circe.generic.JsonCodec
+import io.circe.syntax._
 object Main {
+  @JsonCodec case class SampleResponse(msg: String)
+
   def main(args: Array[String]): Unit =
     serverless.Lambda
       .Handler(
@@ -9,7 +15,7 @@ object Main {
           println("財布ないわ")
           serverless.Lambda.Response(
             200,
-            "さよなら透明だった僕たち"
+            SampleResponse("さよなら透明だった僕たち").asJson.noSpaces
           )
         }
       )
@@ -19,7 +25,7 @@ object Main {
           println(event)
           serverless.Lambda.Response(
             200,
-            "でしょうねミスター・サーバーレス"
+            SampleResponse("でしょうねミスター・サーバーレス").asJson.noSpaces
           )
         }
       )

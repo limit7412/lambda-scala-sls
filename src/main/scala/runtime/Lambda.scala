@@ -2,7 +2,8 @@ package serverless
 
 import io.circe._
 import io.circe.parser._
-import io.circe.generic.JsonCodec, io.circe.syntax._
+import io.circe.generic.JsonCodec
+import io.circe.syntax._
 import cats.instances.string
 import cats.instances.boolean
 
@@ -38,28 +39,26 @@ object Lambda {
       case Right(event: Request) => {
         try {
           val result = callback(event)
-          val res = Http.Post(
+          Http.Post(
             s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/response",
             result.asJson.noSpaces
           )
-          println(res)
         } catch {
           case e: Exception => {
-            var res = Http.Post(
+            Http.Post(
               s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/error",
               Response(
                 500,
                 "{\"msg\", \"Internal Lambda Error\"}"
               ).asJson.noSpaces
             )
-            println(res)
           }
         }
       }
       case Left(_) => throw new Exception("failed to decode request event")
     }
 
-    // handler(callback)
+    handler(callback)
     this
   }
 }
