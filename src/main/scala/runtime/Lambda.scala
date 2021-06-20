@@ -39,7 +39,7 @@ object Lambda {
         try {
           val result = callback(event)
           val res = Http.Post(
-            s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/next",
+            s"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/response",
             result.asJson.noSpaces
           )
           println(res)
