@@ -10,6 +10,5 @@ RUN chmod +x bootstrap
 FROM public.ecr.aws/lambda/provided:al2
 
 COPY --from=build-image /work/bootstrap /var/runtime/
-RUN ls -l
 
 CMD ["dummyHandler"]
