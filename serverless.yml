@@ -12,7 +12,7 @@ provider:
     images:
       appImage:
         path: ./
-  stage: ${opt:, self:custom.defaultStage}
+  stage: ${opt:stage, self:custom.defaultStage}
   # environment:
   #   ${file(./env.yml)}
 
