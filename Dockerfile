@@ -4,7 +4,7 @@ RUN gu install native-image
 RUN microdnf install yum
 ENV LC_ALL C
 RUN yum -y install scala
-RUN yum -y install unzip
+RUN yum -y install unzip zip
 RUN curl -s "https://get.sdkman.io" | bash
 RUN source "$HOME/.sdkman/bin/sdkman-init.sh"
 RUN sdk install sbt
