@@ -1,4 +1,11 @@
-FROM hseeberger/scala-sbt:graalvm-ce-21.3.0-java17_1.6.2_3.1.1 as build-image
+FROM ghcr.io/graalvm/graalvm-ce:latest as build-image
+
+RUN gu install native-image
+RUN microdnf install yum
+ENV LC_ALL C
+RUN yum -y install scala
+RUN curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo
+RUN yum -y install sbt
 
 WORKDIR /work
 COPY ./ ./
