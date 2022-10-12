@@ -11,7 +11,7 @@ RUN echo ". $HOME/.sdkman/bin/sdkman-init.sh; sdk install sbt" | bash
 WORKDIR /work
 COPY ./ ./
 
-RUN sbt nativeImage
+RUN $HOME/.sdkman/candidates/sbt/current/bin/sbt nativeImage
 RUN mv ./target/native-image/bootstrap .
 RUN chmod +x bootstrap
 
