@@ -4,8 +4,9 @@ RUN gu install native-image
 RUN microdnf install yum
 ENV LC_ALL C
 RUN yum -y install scala
-RUN curl https://bintray.com/sbt/rpm/rpm | sudo tee /etc/yum.repos.d/bintray-sbt-rpm.repo
-RUN yum -y install sbt
+RUN curl -s "https://get.sdkman.io" | bash
+RUN source "$HOME/.sdkman/bin/sdkman-init.sh"
+RUN sdk install sbt
 
 WORKDIR /work
 COPY ./ ./
