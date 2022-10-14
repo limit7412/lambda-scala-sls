@@ -1,17 +1,9 @@
-FROM ghcr.io/graalvm/graalvm-ce:latest as build-image
-
-RUN gu install native-image
-RUN microdnf install yum
-ENV LC_ALL C
-RUN yum -y install scala
-RUN yum -y install unzip zip
-RUN curl -s "https://get.sdkman.io" | bash
-RUN echo ". $HOME/.sdkman/bin/sdkman-init.sh; sdk install sbt" | bash
+FROM sbtscala/scala-sbt:graalvm-ce-21.3.0-java17_1.7.2_3.2.0 as build-image
 
 WORKDIR /work
 COPY ./ ./
 
-RUN $HOME/.sdkman/candidates/sbt/current/bin/sbt nativeImage
+RUN sbt nativeImage
 RUN mv ./target/native-image/bootstrap .
 RUN chmod +x bootstrap
 
