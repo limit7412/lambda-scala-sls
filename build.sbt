@@ -1,7 +1,7 @@
-scalaVersion := "2.12.10"
+scalaVersion := "3.2.0"
 name := "bootstrap"
 
-val circeVersion = "0.14.1"
+val circeVersion = "0.14.3"
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
