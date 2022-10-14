@@ -1,4 +1,4 @@
-FROM sbtscala/scala-sbt:graalvm-ce-21.3.0-java17_1.7.2_3.2.0 as build-image
+FROM sbtscala/scala-sbt:graalvm-ce-21.3.0-java17_1.7.2_2.13.10 as build-image
 
 WORKDIR /work
 COPY ./ ./
