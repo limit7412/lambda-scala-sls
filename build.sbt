@@ -1,4 +1,4 @@
-scalaVersion := "2.12.10"
+scalaVersion := "2.13.8"
 name := "bootstrap"
 
 val circeVersion = "0.14.1"
