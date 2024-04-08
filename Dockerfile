@@ -7,7 +7,7 @@ RUN sbt nativeImage
 RUN mv ./target/native-image/bootstrap .
 RUN chmod +x bootstrap
 
-FROM public.ecr.aws/lambda/provided:al2
+FROM public.ecr.aws/lambda/provided:latest
 
 COPY --from=build-image /work/bootstrap /var/runtime/
 
