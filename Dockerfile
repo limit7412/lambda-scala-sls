@@ -1,10 +1,17 @@
-FROM hseeberger/scala-sbt:graalvm-ce-21.1.0-java11_1.5.4_2.13.6 as build-image
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-21.0.2_13_1.10.0_3.3.3 as build-image
 
 WORKDIR /work
 COPY ./ ./
 
-RUN sbt nativeImage
-RUN mv ./target/native-image/bootstrap .
+RUN apt -y update
+RUN apt -y install clang
+RUN apt -y install libcurl4-openssl-dev
+RUN apt -y install libidn2-0-dev
+RUN apt -y install libkrb5-dev
+
+RUN sbt nativeLink
+# RUN sbt nativeLinkReleaseFull
+RUN mv ./target/scala-3.3.3/lambda-scala-sls ./bootstrap
 RUN chmod +x bootstrap
 
 FROM public.ecr.aws/lambda/provided:latest
