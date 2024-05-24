@@ -3,14 +3,16 @@ FROM sbtscala/scala-sbt:eclipse-temurin-jammy-21.0.2_13_1.10.0_3.3.3 as build-im
 WORKDIR /work
 COPY ./ ./
 
-RUN apt -y clean && apt -y update
+RUN apt -y update
 RUN apt -y install clang
 RUN apt -y install libcurl4-openssl-dev
 RUN apt -y install libidn2-0-dev
 RUN apt -y install libkrb5-dev
 RUN apt -y install build-essential
-
-ENV LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+RUN apt -y install libgss-dev
+RUN apt -y install libgss3
+RUN apt -y install libgssapi-krb5-2
+RUN apt -y install libgc-dev
 
 RUN sbt nativeLink
 RUN mv ./target/scala-3.3.3/lambda-scala-sls ./bootstrap
