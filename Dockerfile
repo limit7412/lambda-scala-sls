@@ -10,7 +10,6 @@ RUN apt -y install libidn2-0-dev
 RUN apt -y install libkrb5-dev
 
 RUN sbt nativeLink
-# RUN sbt nativeLinkReleaseFull
 RUN mv ./target/scala-3.3.3/lambda-scala-sls ./bootstrap
 RUN chmod +x bootstrap
 
