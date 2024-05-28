@@ -1,8 +1,7 @@
 package serverless
 
-import sttp.client4.quick.*
-import sttp.client4.curl.*
-import upickle.default.*
+import sttp.client4.quick._
+import upickle.default._
 
 object Lambda {
   case class APIGatewayRequest(
@@ -26,12 +25,11 @@ object Lambda {
     this
   }
   private def handler[A: Reader](callback: A => Response): Lambda.type = {
-    val backend = CurlBackend()
     var response = quickRequest
       .get(
         uri"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/next"
       )
-      .send(backend)
+      .send()
     val requestID = response.header("Lambda-Runtime-Aws-Request-Id")
 
     try {
@@ -43,7 +41,7 @@ object Lambda {
           uri"http://${sys.env("AWS_LAMBDA_RUNTIME_API")}/2018-06-01/runtime/invocation/$requestID/response"
         )
         .body(write(result))
-        .send(backend)
+        .send()
     } catch {
       case e: Exception => {
         e.printStackTrace()
@@ -59,7 +57,7 @@ object Lambda {
               )
             )
           )
-          .send(backend)
+          .send()
       }
     }
 
