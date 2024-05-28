@@ -1,13 +1,14 @@
-FROM hseeberger/scala-sbt:graalvm-ce-21.1.0-java11_1.5.4_2.13.6 as build-image
+FROM virtuslab/scala-cli:latest as build-image
 
 WORKDIR /work
 COPY ./ ./
 
-RUN sbt nativeImage
-RUN mv ./target/native-image/bootstrap .
+RUN scala-cli clean .
+RUN scala-cli config power true
+RUN scala-cli --power package  --native-image --graalvm-args='--static' --graalvm-args='--no-fallback' -o bootstrap .
 RUN chmod +x bootstrap
 
-FROM public.ecr.aws/lambda/provided:latest
+FROM public.ecr.aws/lambda/provided:al2
 
 COPY --from=build-image /work/bootstrap /var/runtime/
 
