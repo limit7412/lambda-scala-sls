@@ -52,8 +52,8 @@ object Lambda {
           .body(
             write(
               ErrorResponse(
-                500,
-                ErrorMessage("Internal Lambda Error", e.getMessage())
+                statusCode = 500,
+                body = ErrorMessage("Internal Lambda Error", e.getMessage())
               )
             )
           )
