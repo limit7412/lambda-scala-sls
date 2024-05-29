@@ -3,7 +3,8 @@ import upickle.default._
 import serverless.Lambda
 
 case class SampleRequest(msg: String, test: Int) derives ReadWriter
-case class SampleResponse(msg: String) derives ReadWriter
+case class HelloResponse(msg: String) derives ReadWriter
+case class WorldResponse(msg: String, body: String) derives ReadWriter
 
 @main def main = serverless.Lambda
   .Handler[serverless.Lambda.APIGatewayRequest](
@@ -12,7 +13,7 @@ case class SampleResponse(msg: String) derives ReadWriter
       serverless.Lambda
         .Response(
           200,
-          write(SampleResponse("さよなら透明だった僕たち"))
+          write(HelloResponse("さよなら透明だった僕たち"))
         )
   )
   .Handler[serverless.Lambda.APIGatewayRequest](
@@ -24,8 +25,9 @@ case class SampleResponse(msg: String) derives ReadWriter
         .Response(
           200,
           write(
-            SampleResponse(
-              s"でしょうねミスター・サーバーレス ${write(body)}"
+            WorldResponse(
+              msg = "でしょうねミスター・サーバーレス",
+              body = write(body)
             )
           )
         )
