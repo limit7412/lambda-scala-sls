@@ -5,7 +5,10 @@ COPY ./ ./
 
 RUN scala-cli clean .
 RUN scala-cli config power true
-RUN scala-cli --power package  --native-image --graalvm-args='--static' --graalvm-args='--no-fallback' -o bootstrap .
+# target GraalVM
+RUN scala-cli --power package --native-image -o bootstrap .
+# target Scala Native
+# RUN scala-cli --power package --native -o bootstrap .
 RUN chmod +x bootstrap
 
 FROM public.ecr.aws/lambda/provided:al2
