@@ -6,9 +6,9 @@ COPY ./ ./
 RUN scala-cli clean .
 RUN scala-cli config power true
 # target GraalVM
-RUN scala-cli --power package --native-image -o bootstrap .
+# RUN scala-cli --power package --native-image -o bootstrap .
 # target Scala Native
-# RUN scala-cli --power package --native -o bootstrap .
+RUN scala-cli --power package --native -o bootstrap .
 RUN chmod +x bootstrap
 
 FROM public.ecr.aws/lambda/provided:latest
