@@ -1,5 +1,7 @@
 FROM virtuslab/scala-cli:latest as build-image
 
+RUN apt-get update && apt-get install -y libcurl4-openssl-dev && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /work
 COPY ./ ./
 
