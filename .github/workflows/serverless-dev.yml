@@ -2,6 +2,10 @@ name: serverless-dev
 
 on: pull_request
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     name: deploy
