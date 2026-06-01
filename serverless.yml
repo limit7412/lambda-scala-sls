@@ -1,37 +1,64 @@
 service: lambda-scala-sls
 
+plugins:
+  - serverless-plugin-scripts
+
 custom:
   defaultStage: dev
+  scripts:
+    hooks:
+      # パッケージング(zip化)直前に、Lambda互換のネイティブバイナリ bootstrap を
+      # Docker内でビルドして取り出す。
+      "before:package:createDeploymentArtifacts": |
+        docker build --platform linux/amd64 -t lambda-scala-sls-build .
+        id=$(docker create --platform linux/amd64 lambda-scala-sls-build)
+        docker cp "$id":/work/bootstrap ./bootstrap
+        docker rm "$id"
+        chmod +x bootstrap
 
 provider:
   name: aws
-  runtime: provided
+  runtime: provided.al2023
+  architecture: x86_64
   timeout: 20
   region: ap-northeast-1
-  ecr:
-    images:
-      appImage:
-        path: ./
-        platform: linux/amd64
   stage: ${opt:stage, self:custom.defaultStage}
+  # --- Docker(コンテナイメージ)版のデプロイ設定。zip版へ移行したため無効化 ---
+  # runtime: provided
+  # ecr:
+  #   images:
+  #     appImage:
+  #       path: ./
+  #       platform: linux/amd64
   # environment:
   #   ${file(./env.yml)}
 
+# zip には bootstrap のみ含める
+package:
+  patterns:
+    - "!**"
+    - bootstrap
+
 functions:
   hello:
-    image:
-      name: appImage
-      command:
-        - hello
+    # handler の値が環境変数 _HANDLER に渡り、Lambda.scala のディスパッチに使われる
+    handler: hello
+    # --- Docker版: コンテナイメージ + command でハンドラ指定 ---
+    # image:
+    #   name: appImage
+    #   command:
+    #     - hello
     events:
       - http:
           path: test
           method: get
   world:
-    image:
-      name: appImage
-      command:
-        - world
+    handler: world
+    # --- Docker版: コンテナイメージ + command でハンドラ指定 ---
+    # image:
+    #   name: appImage
+    #   command:
+    #     - world
     events:
       - http:
           path: test

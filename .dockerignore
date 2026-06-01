@@ -1,0 +1,13 @@
+.git
+bootstrap
+node_modules
+package-lock.json
+.serverless
+.scala-build
+.bsp
+.metals
+.bloop
+target
+.idea
+.vscode
+env.yml
