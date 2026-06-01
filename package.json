@@ -1,0 +1,9 @@
+{
+  "name": "lambda-scala-sls",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scala CLI (Scala Native) で AWS Lambda を動かすサンプル (zip デプロイ)",
+  "devDependencies": {
+    "serverless-plugin-scripts": "^1.0.2"
+  }
+}
