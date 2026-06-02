@@ -5,7 +5,7 @@
 #
 # ここで作ったバイナリはコンテナイメージとしてではなく、抽出して Lambda の zip
 # (provided.al2023 カスタムランタイム) としてデプロイする。
-FROM --platform=linux/amd64 amazonlinux:2023 AS build-image
+FROM --platform=linux/arm64 amazonlinux:2023 AS build-image
 
 RUN dnf install -y \
       clang \
@@ -20,8 +20,8 @@ RUN dnf install -y \
       tar gzip which findutils \
     && dnf clean all
 
-# scala-cli (static x86_64 linux launcher)
-RUN curl -fsSL https://github.com/VirtusLab/scala-cli/releases/latest/download/scala-cli-x86_64-pc-linux.gz \
+# scala-cli (static arm64 linux launcher)
+RUN curl -fsSL https://github.com/VirtusLab/scala-cli/releases/latest/download/scala-cli-aarch64-pc-linux.gz \
       | gunzip > /usr/local/bin/scala-cli \
     && chmod +x /usr/local/bin/scala-cli
 
