@@ -43,6 +43,13 @@ RUN curl -fsSL https://github.com/VirtusLab/scala-cli/releases/latest/download/s
       | gunzip > /usr/local/bin/scala-cli \
     && chmod +x /usr/local/bin/scala-cli
 
+# Alpine の libbrotlidec.a / libpsl.a は GCC LTO (GIMPLE bitcode) の静的アーカイブで、
+# GNU ld は LTO プラグイン無しでは中の object を読めず "plugin needed to handle lto
+# object" となり BrotliDecoder* / psl_* を解決できない。GCC の liblto_plugin.so を
+# binutils のプラグイン探索ディレクトリ(bfd-plugins)へ symlink し ld に自動ロードさせる。
+RUN mkdir -p /usr/lib/bfd-plugins \
+    && ln -sf "$(ls /usr/lib/gcc/*/*/liblto_plugin.so | head -n1)" /usr/lib/bfd-plugins/liblto_plugin.so
+
 WORKDIR /work
 COPY ./ ./
 
