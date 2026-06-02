@@ -15,6 +15,8 @@ FROM --platform=linux/arm64 alpine:3.21 AS build-image
 #  - scala-cli の glibc 製ネイティブランチャを musl 上で動かすため gcompat を入れる
 #  - JVM は musl ネイティブの openjdk17 をシステム JVM として使う
 #  - *-static は libcurl(OpenSSL/zlib/nghttp2/brotli/zstd/idn2 ...) の静的リンク用
+#  - c-ares-dev: Alpine の libcurl は c-ares 有効ビルドで libcurl.a が ares_* を
+#    参照する。Alpine に c-ares-static は無く libcares.a は c-ares-dev に含まれる
 RUN apk add --no-cache \
       bash curl tar gzip which findutils coreutils \
       build-base clang lld llvm \
@@ -29,7 +31,8 @@ RUN apk add --no-cache \
       zstd-static \
       libidn2-static \
       libunistring-static \
-      libpsl-static
+      libpsl-static \
+      c-ares-dev
 
 # scala-cli にシステム JVM(musl ネイティブ)を使わせるため JAVA_HOME を明示
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
@@ -51,25 +54,15 @@ RUN scala-cli config power true
 #  --jvm system : musl ネイティブの openjdk17 を使用 (glibc JVM の自動DLを回避)
 #  --server=false: Bloop ビルドサーバを使わずインプロセスでビルド
 #  --native-linking: 完全静的リンク。Scala Native は @link("curl") で -lcurl のみ
-#    付与するため libcurl の推移的依存(OpenSSL/zlib/nghttp2/brotli/zstd/idn2 等)を
-#    明示し、静的リンク時の解決順序問題を避けるため --start-group/--end-group で囲む。
+#    付与するため libcurl の推移的依存(c-ares/OpenSSL/zlib/nghttp2/brotli/zstd/idn2/
+#    psl 等)を明示する。これらは相互依存(例: libpsl→idn2, brotlidec→brotlicommon)
+#    があり、静的リンクでは解決順序が問題になる。--start-group/--end-group を別々の
+#    --native-linking で渡すと Scala Native のオプション整列でグループが分断され得る
+#    ため、グループ全体を 1 つの -Wl, 引数にまとめて原子的に渡す。
 #    (Linux/リンカー依存のため project.scala ではなくここで指定し移植性を保つ)
 RUN scala-cli --power package --native --jvm system --server=false \
       --native-linking "-static" \
-      --native-linking "-Wl,--start-group" \
-      --native-linking "-lcurl" \
-      --native-linking "-lnghttp2" \
-      --native-linking "-lssl" \
-      --native-linking "-lcrypto" \
-      --native-linking "-lz" \
-      --native-linking "-lbrotlienc" \
-      --native-linking "-lbrotlidec" \
-      --native-linking "-lbrotlicommon" \
-      --native-linking "-lzstd" \
-      --native-linking "-lidn2" \
-      --native-linking "-lunistring" \
-      --native-linking "-lpsl" \
-      --native-linking "-Wl,--end-group" \
+      --native-linking "-Wl,--start-group,-lcurl,-lnghttp2,-lssl,-lcrypto,-lz,-lbrotlienc,-lbrotlidec,-lbrotlicommon,-lzstd,-lidn2,-lunistring,-lpsl,-lcares,--end-group" \
       -o bootstrap .
 RUN chmod +x bootstrap
 # 静的バイナリであることをアサート: musl では静的バイナリに ldd すると非ゼロ終了
