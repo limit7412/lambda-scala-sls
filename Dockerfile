@@ -18,7 +18,7 @@ FROM --platform=linux/arm64 alpine:3.21 AS build-image
 RUN apk add --no-cache \
       bash curl tar gzip which findutils coreutils \
       build-base clang lld llvm \
-      gcompat libstdc++ libgcc \
+      gcompat libstdc++ libstdc++-dev libgcc \
       openjdk17 \
       pkgconf \
       curl-static curl-dev \
@@ -47,13 +47,34 @@ RUN scala-cli clean .
 RUN scala-cli config power true
 # target GraalVM
 # RUN scala-cli --power package --native-image -o bootstrap .
-# target Scala Native (静的リンクは project.scala の nativeLinkingOptions で指定)
+# target Scala Native
 #  --jvm system : musl ネイティブの openjdk17 を使用 (glibc JVM の自動DLを回避)
 #  --server=false: Bloop ビルドサーバを使わずインプロセスでビルド
-RUN scala-cli --power package --native --jvm system --server=false -o bootstrap .
+#  --native-linking: 完全静的リンク。Scala Native は @link("curl") で -lcurl のみ
+#    付与するため libcurl の推移的依存(OpenSSL/zlib/nghttp2/brotli/zstd/idn2 等)を
+#    明示し、静的リンク時の解決順序問題を避けるため --start-group/--end-group で囲む。
+#    (Linux/リンカー依存のため project.scala ではなくここで指定し移植性を保つ)
+RUN scala-cli --power package --native --jvm system --server=false \
+      --native-linking "-static" \
+      --native-linking "-Wl,--start-group" \
+      --native-linking "-lcurl" \
+      --native-linking "-lnghttp2" \
+      --native-linking "-lssl" \
+      --native-linking "-lcrypto" \
+      --native-linking "-lz" \
+      --native-linking "-lbrotlienc" \
+      --native-linking "-lbrotlidec" \
+      --native-linking "-lbrotlicommon" \
+      --native-linking "-lzstd" \
+      --native-linking "-lidn2" \
+      --native-linking "-lunistring" \
+      --native-linking "-lpsl" \
+      --native-linking "-Wl,--end-group" \
+      -o bootstrap .
 RUN chmod +x bootstrap
-# 静的バイナリであることの簡易確認 (動的依存が無ければ "not a dynamic executable")
-RUN ldd bootstrap || true
+# 静的バイナリであることをアサート: musl では静的バイナリに ldd すると非ゼロ終了
+# するため、! で反転し「動的リンクだったらビルド失敗」させる。
+RUN ! ldd bootstrap
 
 # ============================================================================
 # 旧: Amazon Linux 2023 (glibc) 上で動的リンクビルドしていた版。
