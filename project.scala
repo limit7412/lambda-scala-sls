@@ -15,4 +15,4 @@
 // 推移的依存は明示的に並べる必要がある。静的リンク時の解決順序問題を避けるため
 // --start-group / --end-group で囲む。
 //> using nativeLinkingOptions "-static"
-//> using nativeLinkingOptions "-Wl,--start-group" "-lcurl" "-lnghttp2" "-lssl" "-lcrypto" "-lz" "-lbrotlienc" "-lbrotlidec" "-lbrotlicommon" "-lzstd" "-lidn2" "-lunistring" "-lpsl" "-lcares" "-Wl,--end-group"
+//> using nativeLinkingOptions "-Wl,--start-group" "-lcurl" "-lnghttp2" "-lssl" "-lcrypto" "-lz" "-lbrotlienc" "-lbrotlidec" "-lbrotlicommon" "-lzstd" "-lidn2" "-lunistring" "-lpsl" "-Wl,--end-group"

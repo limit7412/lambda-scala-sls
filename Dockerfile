@@ -29,8 +29,7 @@ RUN apk add --no-cache \
       zstd-static \
       libidn2-static \
       libunistring-static \
-      libpsl-static \
-      c-ares-static
+      libpsl-static
 
 # scala-cli にシステム JVM(musl ネイティブ)を使わせるため JAVA_HOME を明示
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
