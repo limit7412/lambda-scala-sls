@@ -14,12 +14,15 @@ FROM --platform=linux/arm64 alpine:3.21 AS build-image
 #  - Scala Native は clang でコンパイル/リンクするため clang/lld/llvm が必要
 #  - scala-cli の glibc 製ネイティブランチャを musl 上で動かすため gcompat を入れる
 #  - JVM は musl ネイティブの openjdk17 をシステム JVM として使う
-#  - *-static は libcurl(OpenSSL/zlib/nghttp2/brotli/zstd/idn2 ...) の静的リンク用
+#  - *-static は libcurl(OpenSSL/zlib/nghttp2/zstd/idn2 ...) の静的リンク用
 #  - c-ares-dev: Alpine の libcurl は c-ares 有効ビルドで libcurl.a が ares_* を
 #    参照する。Alpine に c-ares-static は無く libcares.a は c-ares-dev に含まれる
+#  - brotli/libpsl は Alpine の *-static が GCC LTO アーカイブでクロス ld が解決
+#    できないため後段でソースから非LTO静的ビルドする。cmake と libidn2/unistring
+#    の dev ヘッダ(libpsl ビルド用)を入れる
 RUN apk add --no-cache \
       bash curl tar gzip which findutils coreutils \
-      build-base clang lld llvm \
+      build-base clang lld llvm cmake \
       gcompat libstdc++ libstdc++-dev libgcc \
       openjdk17 \
       pkgconf \
@@ -27,11 +30,9 @@ RUN apk add --no-cache \
       openssl-libs-static \
       zlib-static \
       nghttp2-static \
-      brotli-static \
       zstd-static \
-      libidn2-static \
-      libunistring-static \
-      libpsl-static \
+      libidn2-static libidn2-dev \
+      libunistring-static libunistring-dev \
       c-ares-dev
 
 # scala-cli にシステム JVM(musl ネイティブ)を使わせるため JAVA_HOME を明示
@@ -43,19 +44,37 @@ RUN curl -fsSL https://github.com/VirtusLab/scala-cli/releases/latest/download/s
       | gunzip > /usr/local/bin/scala-cli \
     && chmod +x /usr/local/bin/scala-cli
 
-# Alpine の libbrotlidec.a / libpsl.a は GCC LTO (GIMPLE bitcode) の静的アーカイブで、
-# GNU ld は LTO プラグイン無しでは中の object を読めず "plugin needed to handle lto
-# object" となり BrotliDecoder* / psl_* を解決できない。
-# Scala Native のリンクで実際に使われるのはクロスターゲット用 ld
-# (/usr/<triple>/bin/ld) で、これは /usr/<triple>/lib/bfd-plugins を探索する
-# (gcc が用意する /usr/lib/bfd-plugins は見ない)。そこへ GCC の liblto_plugin.so を
-# symlink し、ld が LTO object を自動で扱えるようにする。
-RUN PLUGIN="$(gcc -print-prog-name=liblto_plugin.so)" \
-    && test -e "$PLUGIN" \
-    && D="/usr/$(gcc -dumpmachine)/lib/bfd-plugins" \
-    && mkdir -p "$D" \
-    && ln -sf "$PLUGIN" "$D/liblto_plugin.so" \
-    && ls -l "$D/liblto_plugin.so"
+# Alpine の brotli-static / libpsl-static は GCC LTO (GIMPLE bitcode) の静的アーカイブで、
+# Scala Native のリンクで使われるクロス ld が中の object を解決できない
+# ("plugin needed to handle lto object" / undefined BrotliDecoder*・psl_*)。
+# そこで brotli と libpsl を非LTOの静的ライブラリとしてソースからビルドし /usr/local
+# へ入れ、リンク時に /usr/local/lib を優先させる。(他の依存=nghttp2/openssl/zlib/
+# zstd/idn2/unistring/c-ares は非LTO静的のためそのまま使える)
+
+# brotli (cmake, 非LTO 静的)。cmake が libbrotli*-static.a で出す版に備え、
+# サフィックス無しの別名(-lbrotlidec 等で参照可能に)も用意する。
+ARG BROTLI_VERSION=1.1.0
+RUN curl -fsSL "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" \
+      | tar xz -C /tmp \
+    && cmake -S "/tmp/brotli-${BROTLI_VERSION}" -B /tmp/brotli-build \
+         -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+         -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_INSTALL_LIBDIR=lib \
+    && cmake --build /tmp/brotli-build --target install -j "$(nproc)" \
+    && for f in /usr/local/lib/libbrotli*-static.a; do \
+         [ -e "$f" ] && ln -sf "$f" "${f%-static.a}.a"; \
+       done \
+    && ls -l /usr/local/lib/libbrotli*.a
+
+# libpsl (autotools, 非LTO 静的)。--enable-builtin=no で PSL データ生成を省略
+# (curl の psl.c が要求するシンボルを満たすのが目的でランタイムでは未使用)。
+ARG LIBPSL_VERSION=0.21.5
+RUN curl -fsSL "https://github.com/rockdaboot/libpsl/releases/download/${LIBPSL_VERSION}/libpsl-${LIBPSL_VERSION}.tar.gz" \
+      | tar xz -C /tmp \
+    && cd "/tmp/libpsl-${LIBPSL_VERSION}" \
+    && ./configure --prefix=/usr/local --enable-static --disable-shared \
+         --enable-runtime=libidn2 --enable-builtin=no \
+    && make -j "$(nproc)" && make install \
+    && ls -l /usr/local/lib/libpsl.a
 
 WORKDIR /work
 COPY ./ ./
@@ -73,9 +92,11 @@ RUN scala-cli config power true
 #    があり、静的リンクでは解決順序が問題になる。--start-group/--end-group を別々の
 #    --native-linking で渡すと Scala Native のオプション整列でグループが分断され得る
 #    ため、グループ全体を 1 つの -Wl, 引数にまとめて原子的に渡す。
+#    -L/usr/local/lib でソースビルドした非LTOの brotli/libpsl を優先的に探索する。
 #    (Linux/リンカー依存のため project.scala ではなくここで指定し移植性を保つ)
 RUN scala-cli --power package --native --jvm system --server=false \
       --native-linking "-static" \
+      --native-linking "-L/usr/local/lib" \
       --native-linking "-Wl,--start-group,-lcurl,-lnghttp2,-lssl,-lcrypto,-lz,-lbrotlienc,-lbrotlidec,-lbrotlicommon,-lzstd,-lidn2,-lunistring,-lpsl,-lcares,--end-group" \
       -o bootstrap .
 RUN chmod +x bootstrap
