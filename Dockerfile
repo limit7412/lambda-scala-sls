@@ -18,11 +18,11 @@ FROM --platform=linux/arm64 alpine:3.21 AS build-image
 #  - c-ares-dev: Alpine の libcurl は c-ares 有効ビルドで libcurl.a が ares_* を
 #    参照する。Alpine に c-ares-static は無く libcares.a は c-ares-dev に含まれる
 #  - brotli/libpsl は Alpine の *-static が GCC LTO アーカイブでクロス ld が解決
-#    できないため後段でソースから非LTO静的ビルドする。cmake と libidn2/unistring
-#    の dev ヘッダ(libpsl ビルド用)を入れる
+#    できないため後段でソースから非LTO静的ビルドする。cmake(brotli)、python3
+#    (libpsl の configure が必須)、libidn2/unistring の dev ヘッダ(libpsl 用)を入れる
 RUN apk add --no-cache \
       bash curl tar gzip which findutils coreutils \
-      build-base clang lld llvm cmake \
+      build-base clang lld llvm cmake python3 \
       gcompat libstdc++ libstdc++-dev libgcc \
       openjdk17 \
       pkgconf \
