@@ -61,7 +61,7 @@ RUN curl -fsSL "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VER
          -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_INSTALL_LIBDIR=lib \
     && cmake --build /tmp/brotli-build --target install -j "$(nproc)" \
     && for f in /usr/local/lib/libbrotli*-static.a; do \
-         [ -e "$f" ] && ln -sf "$f" "${f%-static.a}.a"; \
+         [ -e "$f" ] && ln -sf "$f" "${f%-static.a}.a" || true; \
        done \
     && ls -l /usr/local/lib/libbrotli*.a
 
