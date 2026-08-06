@@ -1,141 +1,73 @@
-# ビルド専用イメージ: Scala Native の `bootstrap` バイナリを Alpine (musl) 上で
-# 静的リンク(static)してビルドする (#22)。
-#
-# 完全静的リンクにより、Lambda 実行環境 (provided.al2023) の glibc / libcurl の
-# バージョンに依存しない自己完結バイナリになる。これによりビルド環境とランタイム
-# 環境のライブラリ整合を取る必要がなくなる (従来は Amazon Linux 2023 上でビルドして
-# glibc/libcurl を一致させていた。下部にコメントで保持)。
-#
-# ここで作ったバイナリはコンテナイメージとしてではなく、抽出して Lambda の zip
+# ビルド専用イメージ: Scala Native の `bootstrap` を Alpine (musl) 上で完全静的リンクする。
+# 生成物はコンテナイメージではなく、抽出して Lambda の zip
 # (provided.al2023 カスタムランタイム) としてデプロイする。
 FROM --platform=linux/arm64 alpine:3.21 AS build-image
 
-# ビルドツールチェーン + libcurl とその推移的依存の「静的アーカイブ(.a)」一式。
-#  - Scala Native は clang でコンパイル/リンクするため clang/lld/llvm が必要
-#  - scala-cli の glibc 製ネイティブランチャを musl 上で動かすため gcompat を入れる
-#  - JVM は musl ネイティブの openjdk17 をシステム JVM として使う
-#  - *-static は libcurl(OpenSSL/zlib/nghttp2/zstd/idn2 ...) の静的リンク用
-#  - c-ares-dev: Alpine の libcurl は c-ares 有効ビルドで libcurl.a が ares_* を
-#    参照する。Alpine に c-ares-static は無く libcares.a は c-ares-dev に含まれる
-#  - brotli/libpsl は Alpine の *-static が GCC LTO アーカイブでクロス ld が解決
-#    できないため後段でソースから非LTO静的ビルドする。cmake(brotli)、python3
-#    (libpsl の configure が必須)、libidn2/unistring の dev ヘッダ(libpsl 用)を入れる
+# clang/lld/llvm: Scala Native のコンパイル/リンク
+# gcompat: scala-cli の glibc 製ランチャを musl 上で動かす
+# openjdk17: システム JVM (musl ネイティブ)
+# libidn2/libunistring: libcurl ではなく sttp-model が @link("idn2") で要求する
 RUN apk add --no-cache \
-      bash curl tar gzip which findutils coreutils \
-      build-base clang lld llvm cmake python3 \
+      curl \
+      build-base clang lld llvm \
       gcompat libstdc++ libstdc++-dev libgcc \
       openjdk17 \
-      pkgconf \
-      curl-static curl-dev \
-      openssl-libs-static \
-      zlib-static \
-      nghttp2-static \
-      zstd-static \
       libidn2-static libidn2-dev \
-      libunistring-static libunistring-dev \
-      c-ares-dev
+      libunistring-static libunistring-dev
 
-# scala-cli にシステム JVM(musl ネイティブ)を使わせるため JAVA_HOME を明示
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# scala-cli (arm64 linux launcher)。glibc 製のため gcompat 経由で実行する。
 RUN curl -fsSL https://github.com/VirtusLab/scala-cli/releases/latest/download/scala-cli-aarch64-pc-linux.gz \
       | gunzip > /usr/local/bin/scala-cli \
     && chmod +x /usr/local/bin/scala-cli
 
-# Alpine の brotli-static / libpsl-static は GCC LTO (GIMPLE bitcode) の静的アーカイブで、
-# Scala Native のリンクで使われるクロス ld が中の object を解決できない
-# ("plugin needed to handle lto object" / undefined BrotliDecoder*・psl_*)。
-# そこで brotli と libpsl を非LTOの静的ライブラリとしてソースからビルドし /usr/local
-# へ入れ、リンク時に /usr/local/lib を優先させる。(他の依存=nghttp2/openssl/zlib/
-# zstd/idn2/unistring/c-ares は非LTO静的のためそのまま使える)
-
-# brotli (cmake, 非LTO 静的)。cmake が libbrotli*-static.a で出す版に備え、
-# サフィックス無しの別名(-lbrotlidec 等で参照可能に)も用意する。
-ARG BROTLI_VERSION=1.1.0
-RUN curl -fsSL "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz" \
-      | tar xz -C /tmp \
-    && cmake -S "/tmp/brotli-${BROTLI_VERSION}" -B /tmp/brotli-build \
-         -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-         -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_INSTALL_LIBDIR=lib \
-    && cmake --build /tmp/brotli-build --target install -j "$(nproc)" \
-    && for f in /usr/local/lib/libbrotli*-static.a; do \
-         [ -e "$f" ] && ln -sf "$f" "${f%-static.a}.a" || true; \
-       done \
-    && ls -l /usr/local/lib/libbrotli*.a
-
-# libpsl (autotools, 非LTO 静的)。--enable-builtin=no で PSL データ生成を省略
-# (curl の psl.c が要求するシンボルを満たすのが目的でランタイムでは未使用)。
-ARG LIBPSL_VERSION=0.21.5
-RUN curl -fsSL "https://github.com/rockdaboot/libpsl/releases/download/${LIBPSL_VERSION}/libpsl-${LIBPSL_VERSION}.tar.gz" \
-      | tar xz -C /tmp \
-    && cd "/tmp/libpsl-${LIBPSL_VERSION}" \
+# 最小構成の libcurl を静的ビルドする (#28)。
+# Alpine の curl-static は OpenSSL/nghttp2/brotli/zstd/psl/c-ares 込みのため、静的リンク
+# するとそれら全ての静的アーカイブが要る (うち brotli/libpsl は Alpine の *-static が
+# GCC LTO アーカイブでクロス ld が解決できず、ソースからの非LTOビルドが必要だった)。
+# 通信相手は Lambda Runtime API だけで TLS も名前解決も HTTP/2 も圧縮も不要なので、
+# それらを無効にして自前ビルドすれば依存ごと消える。
+ARG CURL_VERSION=8.11.1
+RUN curl -fsSL "https://curl.se/download/curl-${CURL_VERSION}.tar.gz" | tar xz -C /tmp \
+    && cd "/tmp/curl-${CURL_VERSION}" \
     && ./configure --prefix=/usr/local --enable-static --disable-shared \
-         --enable-runtime=libidn2 --enable-builtin=no \
-    && make -j "$(nproc)" && make install \
-    && ls -l /usr/local/lib/libpsl.a
+         --disable-ftp --disable-file --disable-ldap --disable-ldaps \
+         --disable-rtsp --disable-dict --disable-telnet --disable-tftp \
+         --disable-pop3 --disable-imap --disable-smb --disable-smtp \
+         --disable-gopher --disable-mqtt --disable-manual --disable-docs \
+         --without-ssl --without-zlib --without-brotli --without-zstd \
+         --without-libpsl --without-libidn2 --without-nghttp2 --without-ngtcp2 \
+         --without-libssh2 --without-librtmp --disable-ares \
+    && make -j "$(nproc)" && make install
 
 WORKDIR /work
 COPY ./ ./
 
 RUN scala-cli clean .
 RUN scala-cli config power true
-# target GraalVM
-# RUN scala-cli --power package --native-image -o bootstrap .
-# target Scala Native
-#  --jvm system : musl ネイティブの openjdk17 を使用 (glibc JVM の自動DLを回避)
-#  --server=false: Bloop ビルドサーバを使わずインプロセスでビルド
-#  --native-linking: 完全静的リンク。Scala Native は @link("curl") で -lcurl のみ
-#    付与するため libcurl の推移的依存(c-ares/OpenSSL/zlib/nghttp2/brotli/zstd/idn2/
-#    psl 等)を明示する。これらは相互依存(例: libpsl→idn2, brotlidec→brotlicommon)
-#    があり、静的リンクでは解決順序が問題になる。--start-group/--end-group を別々の
-#    --native-linking で渡すと Scala Native のオプション整列でグループが分断され得る
-#    ため、グループ全体を 1 つの -Wl, 引数にまとめて原子的に渡す。
-#    -L/usr/local/lib でソースビルドした非LTOの brotli/libpsl を優先的に探索する。
-#    (Linux/リンカー依存のため project.scala ではなくここで指定し移植性を保つ)
+#  --jvm system   : musl ネイティブの openjdk17 を使う (glibc JVM の自動DLを回避)
+#  --server=false : Bloop ビルドサーバを使わずインプロセスでビルド
+#  --native-linking: リンクオプションは Linux/リンカー依存のため project.scala ではなく
+#    ここで指定し、macOS/Windows でのローカル開発を壊さないようにする。
+#    Scala Native は @link 由来の -l を独自順で並べるため、解決順序に依存しないよう
+#    ライブラリ群は 1 つの -Wl, 引数にまとめて原子的に渡す。
 RUN scala-cli --power package --native --jvm system --server=false \
       --native-linking "-static" \
       --native-linking "-L/usr/local/lib" \
-      --native-linking "-Wl,--start-group,-lcurl,-lnghttp2,-lssl,-lcrypto,-lz,-lbrotlienc,-lbrotlidec,-lbrotlicommon,-lzstd,-lidn2,-lunistring,-lpsl,-lcares,--end-group" \
+      --native-linking "-Wl,--start-group,-lcurl,-lidn2,-lunistring,--end-group" \
       -o bootstrap .
 RUN chmod +x bootstrap
-# 静的バイナリであることをアサート: musl では静的バイナリに ldd すると非ゼロ終了
-# するため、! で反転し「動的リンクだったらビルド失敗」させる。
+# 静的リンクの検証。musl では静的バイナリへの ldd が非ゼロ終了するので ! で反転する。
 RUN ! ldd bootstrap
+# 起動できることの検証。_HANDLER 未設定なので NoSuchElementException で即終了するのが正常。
+# リンクが通り ldd 上も静的なのに起動しない構成 (下記 glibc + -static) を検知するため。
+RUN ./bootstrap 2>&1 | grep -q "NoSuchElementException: _HANDLER"
 
-# ============================================================================
-# 旧: Amazon Linux 2023 (glibc) 上で動的リンクビルドしていた版。
-# Lambda 実行環境と glibc/libcurl を一致させるため AL2023 上でビルドしていたが、
-# 静的(musl)リンク版 (#22) へ移行したためコメントで保持。
-# ============================================================================
-#
-# FROM --platform=linux/arm64 amazonlinux:2023 AS build-image
-#
-# RUN dnf install -y \
-#       clang \
-#       gcc \
-#       glibc-devel \
-#       libstdc++-devel \
-#       zlib-devel \
-#       libcurl-devel \
-#       openssl-devel \
-#       libidn2-devel \
-#       java-17-amazon-corretto-headless \
-#       tar gzip which findutils \
-#     && dnf clean all
-#
-# RUN curl -fsSL https://github.com/VirtusLab/scala-cli/releases/latest/download/scala-cli-aarch64-pc-linux.gz \
-#       | gunzip > /usr/local/bin/scala-cli \
-#     && chmod +x /usr/local/bin/scala-cli
-#
-# WORKDIR /work
-# COPY ./ ./
-#
-# RUN scala-cli clean .
-# RUN scala-cli config power true
-# RUN scala-cli --power package --native -o bootstrap .
-# RUN chmod +x bootstrap
+# #28 の本命だった「libcurl 排除 + 公式イメージ virtuslab/scala-cli (glibc) で x86_64」は
+# 不採用。HTTP を自前実装することになり趣旨から外れる上、glibc + -static の Scala Native
+# バイナリはリンクは通るが起動直後に SIGSEGV する (println("hello") だけでも再現。
+# 動的リンクなら正常、musl なら静的でも正常)。よって musl + arm64 を維持している。
 
 # ============================================================================
 # 以下は Docker(コンテナイメージ)版の Lambda デプロイ用 Dockerfile。
@@ -152,9 +84,6 @@ RUN ! ldd bootstrap
 #
 # RUN scala-cli clean .
 # RUN scala-cli config power true
-# # target GraalVM
-# # RUN scala-cli --power package --native-image -o bootstrap .
-# # target Scala Native
 # RUN scala-cli --power package --native -o bootstrap .
 # RUN chmod +x bootstrap
 #
