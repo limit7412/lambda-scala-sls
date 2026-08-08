@@ -24,15 +24,6 @@ provider:
   timeout: 20
   region: ap-northeast-1
   stage: ${opt:stage, self:custom.defaultStage}
-  # --- Docker(コンテナイメージ)版のデプロイ設定。zip版へ移行したため無効化 ---
-  # runtime: provided
-  # ecr:
-  #   images:
-  #     appImage:
-  #       path: ./
-  #       platform: linux/amd64
-  # environment:
-  #   ${file(./env.yml)}
 
 # zip には bootstrap のみ含める
 package:
@@ -44,22 +35,12 @@ functions:
   hello:
     # handler の値が環境変数 _HANDLER に渡り、Lambda.scala のディスパッチに使われる
     handler: hello
-    # --- Docker版: コンテナイメージ + command でハンドラ指定 ---
-    # image:
-    #   name: appImage
-    #   command:
-    #     - hello
     events:
       - http:
           path: test
           method: get
   world:
     handler: world
-    # --- Docker版: コンテナイメージ + command でハンドラ指定 ---
-    # image:
-    #   name: appImage
-    #   command:
-    #     - world
     events:
       - http:
           path: test

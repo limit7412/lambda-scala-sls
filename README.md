@@ -32,11 +32,3 @@ $ npm install
 # deploy (bootstrap の生成 → zip化 → アップロードまで自動)
 $ sls deploy --stage <stage_name>
 ```
-
-## Docker（コンテナイメージ）版について
-
-このリポジトリはサンプル実装のため、以前の Docker イメージ
-（ECR コンテナイメージ）版のデプロイ設定も各ファイルにコメントで残してある。
-
-  - [serverless.yml](serverless.yml): `ecr.images` / `image.command` などをコメント保持
-  - [Dockerfile](Dockerfile): コンテナイメージ用のビルドステージをコメント保持

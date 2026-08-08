@@ -78,28 +78,3 @@ RUN file bootstrap | grep -q "statically linked"
 # リンクが通り静的でもある (= 上の 2 つのチェックは通る) のに起動しない、という上記
 # dlopen 由来の状態を検知するため。
 RUN ./bootstrap 2>&1 | grep -q "NoSuchElementException: _HANDLER"
-
-# ============================================================================
-# 以下は Docker(コンテナイメージ)版の Lambda デプロイ用 Dockerfile。
-# zip(provided.al2023 カスタムランタイム)版へ移行したため無効化している。
-# サンプル実装として両方式を残すためコメントで保持。
-# ============================================================================
-#
-# FROM virtuslab/scala-cli:latest as build-image
-#
-# RUN apt-get update && apt-get install -y libcurl4-openssl-dev && rm -rf /var/lib/apt/lists/*
-#
-# WORKDIR /work
-# COPY ./ ./
-#
-# RUN scala-cli clean .
-# RUN scala-cli config power true
-# RUN scala-cli --power package --native -o bootstrap .
-# RUN chmod +x bootstrap
-#
-# # コンテナイメージ版ではここで Lambda 用ベースイメージに bootstrap を載せていた
-# FROM public.ecr.aws/lambda/provided:latest
-#
-# COPY --from=build-image /work/bootstrap /var/runtime/
-#
-# CMD ["dummyHandler"]
