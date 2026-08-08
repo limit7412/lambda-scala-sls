@@ -10,8 +10,8 @@ custom:
       # パッケージング(zip化)直前に、Lambda互換のネイティブバイナリ bootstrap を
       # Docker内でビルドして取り出す。
       "before:package:createDeploymentArtifacts": |
-        docker build --platform linux/arm64 -t lambda-scala-sls-build .
-        id=$(docker create --platform linux/arm64 lambda-scala-sls-build)
+        docker build --platform linux/amd64 -t lambda-scala-sls-build .
+        id=$(docker create --platform linux/amd64 lambda-scala-sls-build)
         docker cp "$id":/work/bootstrap ./bootstrap
         docker rm "$id"
         chmod +x bootstrap
@@ -19,7 +19,8 @@ custom:
 provider:
   name: aws
   runtime: provided.al2023
-  architecture: arm64
+  # ビルドに使う scala-cli 公式イメージが amd64 単一アーキのため x86_64 (#28)
+  architecture: x86_64
   timeout: 20
   region: ap-northeast-1
   stage: ${opt:stage, self:custom.defaultStage}
@@ -29,7 +30,7 @@ provider:
   #   images:
   #     appImage:
   #       path: ./
-  #       platform: linux/arm64
+  #       platform: linux/amd64
   # environment:
   #   ${file(./env.yml)}
 
