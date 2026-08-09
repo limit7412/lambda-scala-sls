@@ -9,7 +9,14 @@ custom:
     hooks:
       # パッケージング(zip化)直前に、Lambda互換のネイティブバイナリ bootstrap を
       # Docker内でビルドして取り出す。
+      # set -e / rm -f は、前回ビルドの bootstrap が残っている状態で docker が失敗した
+      # 場合に、それを掴んだままデプロイしてしまうのを防ぐため。プラグインは
+      # execSync(= sh -c)で実行するので、既定では途中のコマンドが失敗しても後続に進み、
+      # 最後の chmod が成功する限りフックは成功扱いになる。アーキテクチャを跨いで
+      # 古いバイナリが残っていると Runtime.InvalidEntrypoint になる。
       "before:package:createDeploymentArtifacts": |
+        set -e
+        rm -f bootstrap
         docker build --platform linux/amd64 -t lambda-scala-sls-build .
         id=$(docker create --platform linux/amd64 lambda-scala-sls-build)
         docker cp "$id":/work/bootstrap ./bootstrap
