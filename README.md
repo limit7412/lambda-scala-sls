@@ -15,8 +15,7 @@ Scalaらしいコードを書けたかというと微妙な気がするがまあ
 完全静的リンクにより Lambda 実行環境 (provided.al2023) の glibc/libcurl の
 バージョンに依存しない自己完結バイナリになるため、ビルド環境とランタイム環境の
 ライブラリ整合を取る必要がなくなる (#22)。
-(以前は glibc/libcurl を一致させるため Amazon Linux 2023 上でビルドしていた。
-[Dockerfile](Dockerfile) 下部にコメントで保持)。
+(以前は glibc/libcurl を一致させるため Amazon Linux 2023 上でビルドしていた)。
 
 `serverless-plugin-scripts` により、`sls deploy` / `sls package` の
 パッケージング直前 (`before:package:createDeploymentArtifacts`) に
