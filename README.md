@@ -10,25 +10,20 @@ Scalaらしいコードを書けたかというと微妙な気がするがまあ
 
 ## デプロイ
 
-`bootstrap` (Scala Nativeバイナリ) をビルドして zip でアップロードする。
-ビルドは scala-cli 公式イメージ (`virtuslab/scala-cli`, Debian/glibc) 内で
-**静的リンク (static build)** して行う ([Dockerfile](Dockerfile))。
-完全静的リンクにより Lambda 実行環境 (provided.al2023) の glibc/libcurl の
-バージョンに依存しない自己完結バイナリになるため、ビルド環境とランタイム環境の
-ライブラリ整合を取る必要がなくなる (#22)。
-(以前は glibc/libcurl を一致させるため Amazon Linux 2023 上でビルドしていた)。
+`bootstrap` (Scala Native バイナリ) をビルドし、zip でアップロードする。
+ビルドは scala-cli 公式イメージ (`virtuslab/scala-cli`, Debian/glibc) 内で行い、完全静的リンクする ([Dockerfile](Dockerfile))。
+静的リンクした自己完結バイナリは Lambda 実行環境 (provided.al2023) の glibc/libcurl のバージョンに依存しないため、ビルド環境とランタイム環境でライブラリの整合を取る必要がなくなる (#22)。
+(以前は glibc/libcurl を一致させるため Amazon Linux 2023 上で、その後 Alpine (musl) 上でビルドしていた。経緯は #22, #28 を参照。)
 
-公式イメージが amd64 単一アーキのため、Lambda のアーキテクチャは x86_64 (#28)。
-Apple Silicon 等でローカルビルドする場合は QEMU エミュレーションになる点に注意。
+公式イメージが amd64 のみの提供のため、Lambda のアーキテクチャは x86_64 にしている (#28)。
+Apple Silicon などでローカルビルドする場合は QEMU エミュレーションになる。
 
-`serverless-plugin-scripts` により、`sls deploy` / `sls package` の
-パッケージング直前 (`before:package:createDeploymentArtifacts`) に
-`bootstrap` が自動でビルド・取り出しされる (Docker が必要)。
+パッケージングは `serverless-plugin-scripts` のフックで自動化していて、`sls deploy` / `sls package` を実行すると zip 化の直前 (`before:package:createDeploymentArtifacts`) に Docker 内で `bootstrap` のビルドと取り出しが走る (Docker が必要)。
 
 ```shell
 # プラグインをインストール
 $ npm install
 
-# deploy (bootstrap の生成 → zip化 → アップロードまで自動)
+# デプロイ (bootstrap の生成から zip 化、アップロードまで自動)
 $ sls deploy --stage <stage_name>
 ```
