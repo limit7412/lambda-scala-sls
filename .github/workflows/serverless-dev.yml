@@ -24,8 +24,8 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      # zip版デプロイに必要な serverless-plugin-scripts を導入
-      # (パッケージング直前に Docker で bootstrap をビルドして取り出す)
+      # パッケージング直前に Docker で bootstrap をビルドして取り出すための
+      # serverless-plugin-scripts を導入する (serverless.yml のフック参照)
       - name: install plugins
         run: npm install
 

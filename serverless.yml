@@ -7,13 +7,14 @@ custom:
   defaultStage: dev
   scripts:
     hooks:
-      # パッケージング(zip化)直前に、Lambda互換のネイティブバイナリ bootstrap を
-      # Docker内でビルドして取り出す。
-      # set -e / rm -f は、前回ビルドの bootstrap が残っている状態で docker が失敗した
-      # 場合に、それを掴んだままデプロイしてしまうのを防ぐため。プラグインは
-      # execSync(= sh -c)で実行するので、既定では途中のコマンドが失敗しても後続に進み、
-      # 最後の chmod が成功する限りフックは成功扱いになる。アーキテクチャを跨いで
-      # 古いバイナリが残っていると Runtime.InvalidEntrypoint になる。
+      # パッケージング (zip 化) の直前に、Lambda 互換のネイティブバイナリ bootstrap を
+      # Docker 内でビルドして取り出す。
+      # set -e と rm -f は、docker のビルドが失敗したときに前回の bootstrap を
+      # 掴んだままデプロイしてしまうのを防ぐためのもの。プラグインはこのフックを
+      # execSync (= sh -c) で実行するため、既定では途中のコマンドが失敗しても
+      # 後続へ進んでしまい、最後の chmod さえ成功すればフック全体が成功扱いになる。
+      # そうして残った古いバイナリがアーキテクチャの合わないものだと、デプロイ後に
+      # Runtime.InvalidEntrypoint で起動しなくなる。
       "before:package:createDeploymentArtifacts": |
         set -e
         rm -f bootstrap
@@ -26,7 +27,7 @@ custom:
 provider:
   name: aws
   runtime: provided.al2023
-  # ビルドに使う scala-cli 公式イメージが amd64 単一アーキのため x86_64 (#28)
+  # ビルドに使う scala-cli 公式イメージが amd64 のみの提供のため、x86_64 にする (#28)
   architecture: x86_64
   timeout: 20
   region: ap-northeast-1
@@ -40,7 +41,8 @@ package:
 
 functions:
   hello:
-    # handler の値が環境変数 _HANDLER に渡り、Lambda.scala のディスパッチに使われる
+    # handler の値は実行時に環境変数 _HANDLER として渡され、Lambda.scala の
+    # Handler がこの名前で呼び出す関数を選ぶ
     handler: hello
     events:
       - http:

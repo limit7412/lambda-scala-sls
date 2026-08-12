@@ -18,6 +18,9 @@ object Lambda {
       derives ReadWriter
   case class ErrorMessage(msg: String, error: String) derives ReadWriter
 
+  // 関数名が環境変数 _HANDLER (serverless.yml の handler の値) と一致したときだけ
+  // イベントループへ入る。一致しなければ何もせず自身を返すため、Handler を
+  // メソッドチェーンで並べて 1 つのバイナリに複数の関数を同居させられる。
   def Handler[A: Reader](name: String, callback: A => Response): Lambda.type = {
     if (name == sys.env("_HANDLER")) {
       handler(callback)
@@ -26,8 +29,9 @@ object Lambda {
     this
   }
   // Lambda カスタムランタイムのイベントループ。
-  // /next で次の呼び出しを取得 → callback 実行 → /response か /error を通知、を繰り返す。
-  // 末尾再帰(@tailrec)とし、長時間稼働(ウォーム)でもスタックが伸びないことを保証する。
+  // Runtime API の /next から次の呼び出しを取得し、callback を実行して、
+  // 結果を /response へ (例外時は /error へ) 通知する。これを無限に繰り返す。
+  // 末尾再帰 (@tailrec) なので、ウォームスタートで長時間稼働してもスタックは伸びない。
   @tailrec
   private def handler[A: Reader](callback: A => Response): Nothing = {
     val response = quickRequest
